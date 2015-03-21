@@ -1,0 +1,3 @@
+Time: 兩週一次，週末
+分章節，每人一個chapter，一次一個item
+Book: Effective Modern C++
