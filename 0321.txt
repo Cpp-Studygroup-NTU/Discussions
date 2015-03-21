@@ -5,4 +5,10 @@ For example: 一二三四章，第二章比較短讀完就接第五章
 
 Book: Effective Modern C++
 
+
+
 乙山：第三章
+
+
+耘志：我對 Lambda 那張還滿有興趣的。
+
