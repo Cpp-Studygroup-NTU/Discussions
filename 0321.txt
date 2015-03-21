@@ -14,3 +14,5 @@ Book: Effective Modern C++
 
 
 品賢：smart pointers
+
+志軒：Chapter 1 & 2，type deduction
