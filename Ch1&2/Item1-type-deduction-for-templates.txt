@@ -1,0 +1,106 @@
+C++11開始提供auto關鍵字在某些況下可以用來當作type. Compiler會自動推論出auto代表的tpye. For example:
+
+```C++
+    auto foo = 0L; // foo will be a variable of 'long'
+```
+
+auto的推論規則和C++98就有的template argument一樣，Item 1就是在講template argument的type deduction
+
+以下舉幾個例子：
+
+```C++
+template<typename T>
+void f(const T& param);
+
+int x = 0;
+f(x); // T is int
+```
+
+```C++
+template<typename T>
+void f(T& param);
+
+int x = 27;
+const int cx = x;
+const int& rx = x;
+f(x); // T is int
+f(cx); // T is const int
+f(rx); // T is const int
+```
+
+如果param有const而且param type有reference，那T一定也要有const，不然就可以從template function裡面修改參數的值了
+
+rx的例子裡面如果T是const int &，那param就會變成const int & &，這在C++是不合法的
+
+```C++
+template<typename T>
+void f(T* param);
+
+int x = 27;
+const int* px = &x;
+f(&x); // T is int
+f(px); // T is const int
+```
+
+和上一個一樣，有const的要留下來
+
+接下來這個是universal reference，或rvalue reference，是C++11的新東西，只能bind到rvalue上不能bind到lvalue上
+```C++
+template<typename T>
+void f(T&& param);
+
+int x = 27;
+const int cx = x;
+const int& rx = x;
+f(x); // T is int&
+f(cx); // T is const int&
+f(rx); // T is const int&
+f(27); // T is int
+```
+
+前三個例子int& &&或const int & &&是可以的，在C++裡template允許這種用法，這些type等價於int&跟const int &
+
+接下來沒有reference，所以是copy-by-value，結果會不太一樣
+```C++
+template<typename T>
+void f(T param);
+
+int x = 27;
+const int cx = x;
+const int& rx = x;
+f(x); // T is int
+f(cx); // T is int
+f(rx); // T is int
+
+const char* const ptr = "lalala";
+f(ptr); // T is const char*
+```
+中間兩個結果不需要int，因為copy-by-value之後param和原本的值無關，所以就可以修改
+
+最後一個一樣*後面的const可以不要，因為裡面跟外面的指標不是同一個，但是前面的const還是需要，否則就可以透過template function來修改ptr指到的內容
+
+第三點，array碰到reference會有神奇的事發生
+
+```C++
+template<typename T>
+void f(T& param);
+
+const char str[7] = "lalala";
+f(ptr); // T is const char[7]
+```
+
+這時候param的type是const char (&) [7]，指到const char[7]的reference
+
+最後一點，function可以被自動轉換為function pointer
+
+void someFunc(int, double);
+
+template<typename T>
+void f1(T param);
+
+template<typename T>
+void f2(T& param);
+
+f1(someFunc); // T is void (*) (int, double)
+f2(someFunc); // T is void (&) (int, double) // reference to functions
+
