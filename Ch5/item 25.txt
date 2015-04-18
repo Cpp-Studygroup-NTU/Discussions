@@ -1,0 +1,114 @@
+﻿Chapter 5  Item 25
+
+Move semantics: replace copy(expensive) with moves(cheaper).
+                move constructors and move assignment operators can be designed as copy one.
+                NOT the std::move does.
+
+Perfect forwarding: write function templates that take aritrary args,
+                    and forward them to functions that take the same args.(classifies the args)
+                    NOT the std::forward does.
+
+Rvalue reference: a reference to a R-value.
+
+
+1. std::move -- just cast the input object into Rvalue reference.
+   不要被騙了，std::move沒有move。
+
+    A. Definition
+        sample explain pseudo code of std::move:
+
+        template<typename T>
+        typename remove_reference<T>::type&& std::move(T&& param){
+            using ReturnType = typename remove_reference<T>::type&&;
+            return static_cast<ReturnType>(param);
+        }
+
+        or in C++14:
+
+        template<typename T>
+        decltype(auto) std::move(T&& param){
+            using ReturnType = remove_reference<T>&&;
+            return static_cast<ReturnType>(param);
+        }
+
+        無條件將input轉換為Rvalue reference
+
+    B. Error using
+        假如我有一個function想要把input string複製一份到某個struct裡面
+
+        struct StringData{
+            std::string name;
+        };
+        void f(const std::string s, StringData *data){
+            data->name = std::move(s);
+        }
+
+        乍看之下只有在進入function時copy了一次，
+        但是因為s是const std::string，
+        所以std::move(s)是const std::string &&
+
+        在std::string裡面：
+        class string {
+        public:
+            ...
+            string& operator=(const string& rhs); //copy assignment
+            string& operator=(string&& rhs);      //move assignment
+            ...
+        };
+
+        上面的sample code，在assignment的時候進入的卻是std::string的copy assignment，
+        所以又copy了第二次，而不是將第一次copy的字串move進去
+
+    C. Causion
+        要move的東西，input不可以是const，否則會進入copy assignment。
+        std::move沒有move，只是幫你把物件cast成Rvalue reference準備好讓你move。
+
+
+2. std::forward -- just classify and cast the input opject into Lvalue or Rvalue reference
+   不要被騙了，std::forward沒有forward。
+
+    A. Definition
+        sample explain pseudo code of std::forward:
+
+        template<typename T>
+        T&& forward(T&& param){
+            if (is_lvalue_reference<T>::value) {
+                return param;
+            } else {
+                return move(param);
+            }
+        }
+
+        如果param是R/L-value reference，則std::forward會return R/L-value reference
+
+
+    B. Comparism
+        example of a move constructor:
+
+        class Widget {
+        public:
+            Widget(Widget &&rhs) : s(std::move(rhs.s)) {}
+            ...
+        private:
+            std::string s;
+        };
+
+        其實等同於
+
+        class Widget {
+        public:
+            Widget(Widget &&rhs) : s(std::forward<std::string>(rhs.s)) {}
+            ...
+        private:
+            std::string s;
+        };
+
+        都是把input轉換成reference，進入std::string的move constructor。
+
+
+3. when to use std::move and std::forward ?
+    std::move    : unconditional cast to an Rvalue reference
+    std::forward : conditional cast to Lvalue or Rvalue reference
+
+    std::forward可以取代std::move。
+    Both move and forward do nothing at runtime. (just cast to reference)

@@ -12,6 +12,7 @@ Book: Effective Modern C++
 
 耘志：我對 Lambda 那張還滿有興趣的。
 
+宜穎：Chapter 5
 
 品賢：smart pointers
 
