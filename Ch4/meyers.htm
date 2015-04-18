@@ -1,0 +1,238 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<meta http-equiv="Content-Language" content="en-us" />
+<meta name="version" content="8624"/>
+<style>body {font-family:Helvetica}ul.comment{list-style-image:url('https://hackpad.com/static/img/comment.png');} ul.task{list-style-image:url('https://hackpad.com/static/img/unchecked.png');}ul.taskdone{list-style-image:url('https://hackpad.com/static/img/checked.png');} </style><title>/1$z7Bz5qcUGRa</title>
+</head>
+<body><h1>Meyers Ch.4 Smart Pointers</h1><h2>Introduction</h2><p><b>What&rsquo;s wrong with raw pointers?</b></p><ul><li>Its declaration has <b>no</b> information to<ul><li>type of object it points to; Is it a single object or an array?</li>
+<li>ownership; Is it the legitimate resource owner or just temporary pointer?</li>
+<li>what kind of destruction method should be used? Ex: <b>delete</b> or <b>delete []</b>?</li></ul>
+</li>
+<li>Handle the construction/destruction manually in code?<ul><li>Make the program follow the defined path is difficult (condition, multiple-thread...)</li>
+<li>Case of exception?</li></ul>
+</li>
+<li>Dangling pointers</li></ul>
+<ul class="code"><li>Object* obj = malloc( sizeof(Object) );&nbsp;&nbsp;&nbsp; // dynamically allocated</li>
+<li>cout &lt;&lt; obj &lt;&lt; endl;&nbsp;&nbsp;&nbsp; // prints &quot;0xc95010&quot;</li>
+<li>free(obj);&nbsp;&nbsp;&nbsp; // memory space released; Now &rsquo;obj&rsquo; is a dangling pointer</li>
+<li>cout &lt;&lt; obj &lt;&lt; endl;&nbsp;&nbsp;&nbsp; // still prints &quot;0xc95010&quot;; &rsquo;obj&rsquo; still contains address value</li>
+<li>obj-&gt;method();&nbsp;&nbsp;&nbsp; // so if we dereference this &quot;dangling pointers&quot;... the result is undefined (potentially dangerous)</li>
+<li><br/></li>
+<li>obj = NULL;&nbsp;&nbsp;&nbsp; // old ways to avoid the problem</li></ul>
+
+<p><b>Purpose of Smart Pointers</b></p><ul><li>Wrapper of raw pointers; act much like raw pointers while avoiding many of their pitfalls</li>
+<li>designed to manage lifetimes of dynamically allocated objects</li>
+<li>Four types of smart pointers in C++11<ul><li><b>std::auto_ptr</b> (deprecated): attempt in C++98, later become <b>std::unique_ptr</b></li>
+<li><b>std::unique_ptr</b></li>
+<li><b>std::shared_ptr</b></li>
+<li><b>std::weak_ptr</b></li></ul>
+</ul>
+
+<h2>Item 18: std::unique_ptr</h2><p><b>Usage</b></p><ul class="code"><li>{</li>
+<li>&nbsp;&nbsp;&nbsp; // well-known ways of dynamically allocation using raw pointers</li>
+<li>&nbsp;&nbsp;&nbsp; Object* obj98 = new Object();</li>
+<li>&nbsp;&nbsp;&nbsp; Object* obj98_1x5 = new Object() [5];</li>
+<li>&nbsp;&nbsp;&nbsp; // Change raw pointers to std::unique_ptr</li>
+<li>&nbsp;&nbsp;&nbsp; std::unique_ptr&lt;Object&gt; obj11 (new Object);</li>
+<li>&nbsp;&nbsp;&nbsp; std::unique_ptr&lt;Object[]&gt; obj11_1x5 (new Object[5]);</li>
+<li>&nbsp;&nbsp;&nbsp; obj11-&gt;foobar_method();&nbsp;&nbsp;&nbsp; // just use std::unique_ptr like raw pointers</li>
+<li>&nbsp;&nbsp;&nbsp; cout &lt;&lt; obj11.get() &lt;&lt; endl;&nbsp;&nbsp;&nbsp; // get the (raw) pointer to the managed object</li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;</li>
+<li>&nbsp;&nbsp;&nbsp; std::unique_ptr&lt;Object&gt; obj11_new;&nbsp;&nbsp;&nbsp; // a null unique_ptr (nullptr)</li>
+<li>&nbsp;&nbsp;&nbsp; obj11_new = obj11;&nbsp;&nbsp;&nbsp; // ILLEGAL way to move unique_ptr</li>
+<li>&nbsp;&nbsp;&nbsp; obj11_new = std::move(obj11);&nbsp;&nbsp;&nbsp; // legitimate way to move unique_ptr</li>
+<li>&nbsp;&nbsp;&nbsp; // now &rsquo;obj11_new&rsquo; will have the address value while &rsquo;obj11&rsquo; becomes nullptr</li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;</li>
+<li>&nbsp;&nbsp;&nbsp; // a custom deleter can be assigned; should add its type when construct std::unique_ptr</li>
+<li>&nbsp;&nbsp;&nbsp; auto delObject = [] (Object* obj) { ... };</li>
+<li>&nbsp;&nbsp;&nbsp; std::unique_ptr&lt;Object, decltype(delObject)&gt; obj11_with_deleter (new Object, delObject);</li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;</li>
+<li>&nbsp;&nbsp;&nbsp; // raw pointers need to be deleted explicitly</li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp; delete obj98;</li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp; delete [] obj98_1x5;</li>
+<li>&nbsp;&nbsp;&nbsp; // but don&rsquo;t worry about unique_ptr objects,</li>
+<li>&nbsp;&nbsp;&nbsp; // it will automatically call its destructor after leaving the scope</li>
+<li>}</li></ul>
+
+<p><b>Property</b></p><ul><li>same size as raw pointer (both take 8 bytes in my 64-bit machine)</li>
+<li>exclusive-ownership; a non-null <b>std::unique_ptr</b> always owns what it points to<ul><li>use <b>std::move()</b> to legally move <b>std::unique_ptr</b></li></ul>
+</li>
+<li>separate the forms of single objects (<b>std::unique_ptr&lt;T&gt;</b>) and arrays (<b>std::unique_ptr&lt;T[ ]&gt;</b>)</li>
+<li>For destruction, <b>std::unique_ptr</b> applies <b>delete</b> method to its raw pointer by default<ul><li>Custom deleters can be configured during construction</li></ul>
+</ul>
+
+<p><b>Case study: factory function for objects in a hierarchy</b></p><p>Consider the class hierarchy below:</p><ul class="code"><li>class Drink { ... } ;&nbsp;&nbsp; // base class</li>
+<li>// and its derived classes</li>
+<li>class Tea : public Drink { ... } ;</li>
+<li>class Coffee : public Drink { ... } ;</li>
+<li>class Cola : public Drink { ... } ;</li></ul>
+
+<p>Basic strategy:</p><p>Create a null <b>std::unique_ptr</b>, make it point to an object of the appropriate type, and then return it:</p><ul><li>use <b>reset</b> method in <b>std::unique_ptr</b> to convert raw pointer to smart pointer</li>
+<li>use <b>std::forward()</b> to pass <b>params</b> (from callers) to each class&rsquo; constructor <b>(Item 25)</b></li></ul>
+<ul class="code"><li>template &lt;typename... Ts&gt;</li>
+<li>std::unique_ptr&lt;Drink&gt; makeDrink(Ts&amp;&amp;... params) {</li>
+<li>&nbsp;&nbsp;&nbsp; std::unique_ptr&lt;Drink&gt; pDrk (nullptr);&nbsp;&nbsp;&nbsp; // ptr to be returned</li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;</li>
+<li>&nbsp;&nbsp;&nbsp; // Now reset &rsquo;pDrk&rsquo; to be an appropriate type</li>
+<li>&nbsp;&nbsp;&nbsp; if ( /* choose Tea */) { pDrk.reset( new Tea( std::forward&lt;Ts&gt;(params)... ) ); }</li>
+<li>&nbsp;&nbsp;&nbsp; else if ( /* choose Coffee */) { pDrk.reset( new Coffee( std::forward&lt;Ts&gt;(params)... ) ); }</li>
+<li>&nbsp;&nbsp;&nbsp; else if&nbsp; ( /* choose Cola*/) { pDrk.reset( new Cola( std::forward&lt;Ts&gt;(params)... ) ); }</li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;</li>
+<li>&nbsp;&nbsp;&nbsp; return pDrk;&nbsp;&nbsp;&nbsp; // return the result ptr</li>
+<li>}</li>
+<li>{ ...</li>
+<li>&nbsp;&nbsp;&nbsp; // result ptr can be moved into containers, or become data member of any object, etc.</li>
+<li>&nbsp;&nbsp;&nbsp; // this unique_ptr will be eventually destroyed</li>
+<li>&nbsp;&nbsp;&nbsp; auto pDrink = makeDrink( <i>arguments</i> );</li>
+<li>&nbsp;&nbsp;&nbsp; // we can also generate a std::shared_ptr using the function</li>
+<li>&nbsp;&nbsp;&nbsp; std::shared_ptr&lt;Drink&gt; sp = makeDrink( <i>arguments</i> );</li>
+<li>... }&nbsp; // destroy pDrink</li></ul>
+
+<p>When using custom deleter:</p><ul><li>specify its type as the 2nd type argument to <b>std::unique_ptr</b></li>
+<li>since our custom deleter take a <b>Drink*</b>-type pointer, base class <b>Drink</b> needs a virtual destructor</li>
+<li>a custom deleter may cause the size of <b>std::unique_ptr</b> to grow<ul><li>deleters that are function pointers will generally add 1 word size (function pointer)</li>
+<li>the change in size depends on how much state is stored in the function object</li>
+<li>stateless function objects, like lambda expressions with no captures (in this case), incur no size penalty</li></ul>
+</ul>
+<ul class="code"><li>// base class need a virtual destructor</li>
+<li>class Drink {</li>
+<li>public:</li>
+<li>&nbsp;&nbsp;&nbsp; virtual ~Drink();</li>
+<li>&nbsp;&nbsp;&nbsp; ...</li>
+<li>}</li>
+<li><br/></li>
+<li>// In C++14, take advantage of function type deduction</li>
+<li>template &lt;typename... Ts&gt;</li>
+<li>auto makeDrink(Ts&amp;&amp;... params) {</li>
+<li>&nbsp;&nbsp;&nbsp; auto delDrink = [] (Drink* pDrink) { recycleCup(pDrink); delete pDrink; }&nbsp;&nbsp;&nbsp; // custom deleter</li>
+<li>&nbsp;&nbsp;&nbsp; std::unique_ptr&lt;Drink, decltype(delDrink)&gt; pDrk (nullptr, delDrink);&nbsp;&nbsp;&nbsp; // ptr to be returned</li>
+<li>&nbsp;&nbsp;&nbsp; ... (selection like above) ...</li>
+<li>&nbsp;&nbsp;&nbsp; return pDrk;</li>
+<li>}</li></ul>
+
+<p></p><h2>Item 19: std::shared_ptr</h2><p><b>Usage</b></p><ul class="code"><li>{</li>
+<li>&nbsp;&nbsp;&nbsp; std::shared_ptr&lt;Object&gt; obj_null;&nbsp;&nbsp;&nbsp; // do nothing; acts like nullptr</li>
+<li>&nbsp;&nbsp;&nbsp; std::shared_ptr&lt;Object&gt; obj1 (new Object);&nbsp;&nbsp;&nbsp; // allocate a single object; reference count +1</li>
+<li>&nbsp;&nbsp;&nbsp; std::shared_ptr&lt;Object&gt; obj2 (obj1);&nbsp;&nbsp;&nbsp; // obj2 will points to the resource that obj1 also points to; reference count + 1</li>
+<li>&nbsp;&nbsp;&nbsp; // use_count() prints reference count; both of them are 2</li>
+<li>&nbsp;&nbsp;&nbsp; cout &lt;&lt; obj1.use_count() &lt;&lt; &rsquo; &rsquo; &lt;&lt; obj2.use_count() &lt;&lt; endl;</li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;</li>
+<li>&nbsp;&nbsp;&nbsp; // like std::unique_ptr; std::shared_ptr can also use a custom deleter</li>
+<li>&nbsp;&nbsp;&nbsp; auto delObject = [](Object* pObj) { ... };</li>
+<li>&nbsp;&nbsp;&nbsp; // but in std::shared_ptr, there is no need to add custom deleter&rsquo;s type</li>
+<li>&nbsp;&nbsp;&nbsp; std::shared_ptr&lt;Object&gt; obj3 (new Object, delObject);</li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;</li>
+<li>&nbsp;&nbsp;&nbsp; // use std::make_shared</li>
+<li>&nbsp;&nbsp;&nbsp; auto p1 = std::make_shared&lt;int&gt;(45);</li>
+<li>}</li></ul>
+
+<p><b>Property</b></p><ul><li>Twice the size of a raw pointer</li>
+<li>Manage lifetime by shared ownership (reference count)<ul><li>resources will be destroyed when no any <b>std::shared_ptr</b> points to it</li>
+<li>reference count increment/decrement must be atomic</li></ul>
+</li>
+<li>Custom deleter can be assigned to <b>std::shared_ptr</b><ul><li>unlike <b>std::unique_ptr</b>, there is no need to add custom deleter&rsquo;s type as type arguments</li>
+<li>The type of custom deleter is a part of the type of <b>std::unique_ptr</b>; for <b>std::shared_ptr</b>, it is not.</li></ul>
+</li>
+<li>Upgrade <b>std::unique_ptr</b> to <b>std::shared_ptr</b> is easy; the reverse is not.</li>
+<li><b>std::shared_ptr</b> has no array implementation (no <b>std::shared_ptr&lt;T[ ]&gt;</b>)</li></ul>
+
+<p><b>Control Blocks</b></p><ul><li>Information to reference count, custom deleter, ... , will be stored in heap-based &quot;control block&quot;, to which another pointer of <b>std::shared_ptr</b> object points (that&rsquo;s why it has double size)</li>
+<li>CB generated when...<ul><li>new object created (ctor called with raw pointer or <b>std::make_shared()</b> )</li>
+<li>construct from unique-ownership pointer (like <b>std::unique_ptr</b>)</li></ul>
+</li>
+<li>Directly constructed from raw pointers could lead to multiple CBs (troubles!)</li></ul>
+<ul class="code"><li>auto pObj = new Object();&nbsp;&nbsp;&nbsp; // raw pointer</li>
+<li>std::shared_ptr&lt;Object&gt; sp1(pObj, delObject);&nbsp;&nbsp;&nbsp; // create CB</li>
+<li>std::shared_ptr&lt;Object&gt; sp2(pObj, delObject);&nbsp;&nbsp;&nbsp; // create another CB!</li>
+<li>// simple way to avoid multiple CBs</li>
+<li>std::shared_ptr&lt;Object&gt; sp1(new Object, delObject);&nbsp;&nbsp;&nbsp; // directly pass result of &rsquo;new&rsquo;&nbsp;</li>
+<li>std::shared_ptr&lt;Object&gt; sp2(sp1);&nbsp;&nbsp;&nbsp; // now sp2 share the same CB of sp1</li></ul>
+
+<undefined><li><b>&rsquo;this&rsquo; pointer workaround - enable_shared_from_this</b></li></undefined>
+<ul class="code"><li>std::vector&lt;std::shared_ptr&lt;Object&gt;&gt; objPtrList;</li>
+<li>// inherit from std::enable_shared_from_this class; it is a CRTP idiom</li>
+<li>class Object : public std::enable_shared_from_this&lt;Object&gt; { ... }</li>
+<li>void Object::operation_with_this() {</li>
+<li>&nbsp;&nbsp;&nbsp; ...</li>
+<li>&nbsp;&nbsp;&nbsp; // instead directly use &rsquo;this&rsquo;,</li>
+<li>&nbsp;&nbsp;&nbsp; // use shared_from_this() to avoid multiple CBs</li>
+<li>&nbsp;&nbsp;&nbsp; objPtrList.emplace_back(shared_from_this());</li>
+<li>&nbsp;&nbsp;&nbsp; ...</li>
+<li>}</li></ul>
+<ul><li><b>shared_from_this</b> looks up control block and return a new <b>std::shared_ptr</b></li>
+<li>an existing <b>std::shared_ptr</b> is needed<ul><li>common design: make clients use factory functions which calls private constructors and return <b>std::shared_ptr</b></li></ul>
+</ul>
+
+<undefined><li><b>Note</b></li></undefined>
+<ul><li>CRTP&nbsp; (Curiously recurring template Pattern)</li></ul>
+<ul style="list-style: none;"><li>class X derives from a class template instantiation using X itself as template argument.</li></ul>
+<ul class="code"><li>class Derived : public Base&lt;Derived&gt; { ... };</li></ul>
+
+<p></p><h2>Item 20: std::weak_ptr</h2><p><b>Usage</b></p><ul class="code"><li>{</li>
+<li>&nbsp;&nbsp;&nbsp; auto sp = std::make_shared&lt;Object&gt;();&nbsp;&nbsp;&nbsp; // new std::shared_ptr with RC=1</li>
+<li>&nbsp;&nbsp;&nbsp; std::weak_ptr&lt;Object&gt; wp(sp);&nbsp;&nbsp;&nbsp; // wp points to same Object as sp. RC remains 1</li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;</li>
+<li>&nbsp;&nbsp;&nbsp; if (wp.expired()) cout &lt;&lt; &quot;Expired&quot; &lt;&lt; endl;&nbsp;&nbsp;&nbsp; // directly test if pointer dangles</li>
+<li>&nbsp;&nbsp;&nbsp; // there is no dereferencing operation in std::weak_ptr; use atomic operation lock() instead</li>
+<li>&nbsp;&nbsp;&nbsp; auto sp = wp.lock();&nbsp;&nbsp;&nbsp; // returns std::shared_ptr if resource available (else return nullptr)</li>
+<li>&nbsp;&nbsp;&nbsp; // or use std::shared_ptr constructor; throw std::bad_weak_ptr if wp is expired</li>
+<li>&nbsp;&nbsp;&nbsp; std::shared_ptr&lt;Object&gt; sp(wp);</li>
+<li>}</li></ul>
+
+<p><b>Property</b></p><ul><li>same size as <b>std::shared_ptr</b> (also has pointer to Control Block)</li>
+<li>augmentation of <b>std::shared_ptr</b>; It can only be initialized by <b>std::shared_ptr</b><ul><li>std::weak_ptr can neither be dereferenced, nor be tested for nullness</li></ul>
+</li>
+<li>Check if pointer dangles while not affecting the reference count of the object it points to<ul><li>Instead, it will change &quot;weak count&quot; in Control Block associated with its target object</li></ul>
+</li>
+<li><b>expired</b> method; for atomic operation, use <b>lock</b> method instead</li>
+<li>3 scenarios that <b>std::weak_ptr</b> helps in Meyers<ul><li>Caching</li>
+<li>Observer design pattern</li>
+<li>Prevent <b>std::shared_ptr</b> cycles</li></ul>
+</ul>
+
+<p><b>Prevent circular reference</b></p><p>Assume the scenario below:</p><ul class="code"><li>class A {</li>
+<li>&nbsp;&nbsp;&nbsp; std::shared&lt;B&gt; toB;</li>
+<li>};</li>
+<li>class C {</li>
+<li>&nbsp;&nbsp;&nbsp; std::shared&lt;B&gt; toB;</li>
+<li>};</li>
+<li>class B {</li>
+<li>&nbsp;&nbsp;&nbsp; /* what kind of pointer type? */ toA;</li>
+<li>};</li></ul>
+<ol><li>&nbsp;<b>A* toA</b> (raw pointer): if A destroyed, C continues to point to B, then B contains dangling pointers (<b>toA</b>)</li>
+<li><b>std::shared_ptr&lt;A&gt; toA</b> : A and B form <b>std::shared_ptr</b> cycles; resource won&rsquo;t be released even when both A and B have been orphaned</li>
+<li><b>std::weak_ptr&lt;A&gt; toA</b> : Now B can detect if A dangles, and since <b>toA</b> won&rsquo;t affect reference count of object A, A can release the memory when RC=0</li></ol>
+
+<p></p><h2>Item 21: std::make_unique() and std::make_shared()</h2><p><b>Usage</b></p><ul class="code"><li>// With these &quot;make functions&quot;, only one &quot;Object&quot; typed, sweet :)&nbsp;</li>
+<li>auto up1 ( std::make_unique&lt;Object&gt;() );</li>
+<li>std::unique_ptr&lt;Object&gt; up2 ( new Object );</li>
+<li>auto sp1 ( std::make_shared&lt;Object&gt;() );</li>
+<li>std::shared_ptr&lt;Object&gt; sp2 ( new Object );</li>
+<li><br/></li>
+<li><br/></li>
+<li><br/></li>
+<li>// Although std::make_unique is not defined in C++11, build a simple version is not a big deal</li>
+<li>template &lt;typename T, typename... Ts&gt;</li>
+<li>std::unique_ptr&lt;T&gt; make_unique(Ts&amp;&amp;... params)</li>
+<li>{</li>
+<li>&nbsp;&nbsp;&nbsp; return std::unique_ptr&lt;T&gt;(new T(std::forward&lt;Ts&gt;(params)...));</li>
+<li>}</li></ul>
+<p><b>Property</b></p><undefined><li><b>Make functions</b></li></undefined>
+<ol><li><b>std::make_unique</b></li>
+<li><b>std::make_shared</b></li>
+<li><b>std::allocate_shared</b></li></ol>
+<undefined><li><b>Pros/Cons</b></li></undefined>
+<ul><li>code simplicity</li>
+<li>improve exception safety</li>
+<li>generate lightweight code for <b>std::make_shared</b> and <b>std::allocate_shared</b></li>
+<li>cannot be used when assigning custom deleters, or passing brace initializers</li></ul>
+
+<p><b>Exception Safety</b></p><ul class="code"><li>void f (std::unique&lt;Object&gt;, std::unique&lt;Object&gt;)&nbsp;&nbsp;&nbsp; // header declaration</li>
+<li><br/></li>
+<li>// call of f. Which one is better?</li>
+<li>f ( std::unique&lt;Object&gt; { new Object } , std::unique&lt;Object&gt; { new Object } );</li>
+<li>f ( std::make_unique&lt;Object&gt;(), std::make_unique&lt;Object&gt;() );</li></ul>
+<p>Why <b>std::make_unique</b> can guarantee exception-safety?</p><p>It produces &quot;temporary objects&quot; (<b>std::unique&lt;T&gt;</b> pointers) , and its destruction is clearly specified in C++ standard</p><p></p><p></p><h2>Item 22: Pimpl Idiom case</h2><p></p><p></p><h2>Reference</h2><p><a href="http://oopscenities.net/2013/04/09/smart-pointers-part-2-unique_ptr-2/"></a>http://oopscenities.net/2013/04/09/smart-pointers-part-2-unique_ptr-2/</p><p><a href="http://oopscenities.net/2013/08/06/c-smart-pointers-part-3-more-on-unique_ptr/"></a>http://oopscenities.net/2013/08/06/c-smart-pointers-part-3-more-on-unique_ptr/</p><p><a href="http://oopscenities.net/2013/10/06/smart-pointers-part-4-shared_ptr/"></a>http://oopscenities.net/2013/10/06/smart-pointers-part-4-shared_ptr/</p><p><a href="http://oopscenities.net/2014/08/03/c-smart-pointers-part-5-weak_ptr/"></a>http://oopscenities.net/2014/08/03/c-smart-pointers-part-5-weak_ptr/</p><p></p><p><a href="http://herbsutter.com/gotw/_102/"></a>http://herbsutter.com/gotw/_102/</p><p></p><p></p></body>
+</html>
