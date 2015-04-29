@@ -1,0 +1,36 @@
+Chapter 5  Item 26
+
+lvalue reference: reference can bind a lvalue
+rvalue reference: reference can bind a rvalue
+universal reference: reference can bind both rvalue and lvalue
+
+1. Declaration
+    in function template:
+        template <typename T>
+        void f(T&& param);
+    in auto declarations:
+        auto&& b = a;
+    必須要在bind時有產生type deduction才會是universal reference
+
+    void f(int&& param);            // no type deduction, rvalue reference
+    Widget&& w = Widget();          // no type deduction, rvalue reference
+    template <typename T>
+    int f(std::vector<T>&& vec);    // type deduction caused before binding
+                                    // rvalue reference
+    這些都不是universal reference，而是rvalue reference
+
+
+2. Behavior
+    universal reference可以bind rvalue也可以bind lvalue
+    最後會變成rvalue還是lvalue reference由bind的物件決定
+    
+    template <typename T>
+    void f(T&& param);      // param is an universal reference
+    Widget w;
+    f(w);                   // param is Widget&, an lvalue reference
+    f(std::move(w));        // param is Widget&&, an rvalue reference
+
+
+3. reference-collapsing
+    Means the behavior that an universal reference will correspond to an 
+    lvalue or rvalue reference according to the initialized object.
