@@ -1,0 +1,110 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en" xml:lang="en">
+<head>
+<meta http-equiv="Content-type" content="text/html; charset=utf-8" />
+<meta http-equiv="Content-Language" content="en-us" />
+<meta name="version" content="12"/>
+<style>body {font-family:Helvetica}ul.comment{list-style-image:url('https://hackpad.com/static/img/comment.png');} ul.task{list-style-image:url('https://hackpad.com/static/img/unchecked.png');}ul.taskdone{list-style-image:url('https://hackpad.com/static/img/checked.png');} </style><title>/1$fgKz7A0h9Pa</title>
+</head>
+<body><h1>Meyers Ch.4 Smart Pointers Part II</h1><p></p><h2>Item 21: std::make_unique() and std::make_shared()</h2><p><b>Usage</b></p><ul class="code"><li>// With these &quot;make functions&quot;, only one &quot;Object&quot; typed, sweet :)&nbsp;</li>
+<li>auto up1 ( std::make_unique&lt;Object&gt;() );</li>
+<li>std::unique_ptr&lt;Object&gt; up2 ( new Object );</li>
+<li>auto sp1 ( std::make_shared&lt;Object&gt;() );</li>
+<li>std::shared_ptr&lt;Object&gt; sp2 ( new Object );</li>
+<li><br/></li>
+<li>// Although std::make_unique is not defined in C++11, build a simple version is not a big deal</li>
+<li>template &lt;typename T, typename... Ts&gt;</li>
+<li>std::unique_ptr&lt;T&gt; make_unique(Ts&amp;&amp;... params)</li>
+<li>{</li>
+<li>&nbsp;&nbsp;&nbsp; return std::unique_ptr&lt;T&gt;(new T(std::forward&lt;Ts&gt;(params)...));</li>
+<li>}</li></ul>
+<p><b>Property</b></p><undefined><li><b>Make functions</b></li></undefined>
+<ol><li><b>std::make_unique</b></li>
+<li><b>std::make_shared</b></li>
+<li><b>std::allocate_shared</b></li></ol>
+<undefined><li><b>Pros</b></li></undefined>
+<ul><li>code simplicity</li>
+<li>improve exception safety</li>
+<li>generate lightweight code for <b>std::make_shared</b> and <b>std::allocate_shared</b></li></ul>
+<undefined><li><b>Cons</b></li></undefined>
+<ul><li>cannot be used when assigning custom deleters or brace initializers</li>
+<li>for <b>std::make_shared</b> method:<ul><li>poor fit to class-specific versions of operator <b>new</b> and <b>delete</b></li>
+<li>smart pointer will release the resource only when <b>both</b> reference count and weak count goes to 0</li></ul>
+</ul>
+
+<p><b>Exception Safety</b></p><ul class="code"><li>void f (std::unique&lt;Object&gt;, std::unique&lt;Object&gt;)&nbsp;&nbsp;&nbsp; // header declaration</li>
+<li><br/></li>
+<li>// call of f. Which one is better?</li>
+<li>f ( std::unique&lt;Object&gt; { new Object } , std::unique&lt;Object&gt; { new Object } );</li>
+<li>f ( std::make_unique&lt;Object&gt;(), std::make_unique&lt;Object&gt;() );</li></ul>
+<p>Why <b>std::make_unique</b> can guarantee exception-safety?</p><p>It produces &quot;temporary objects&quot; (<b>std::unique&lt;T&gt;</b> pointers) , and its destruction is clearly specified in C++ standard</p><p></p><p><b>Scenario that std::make_shared is not appropriate</b></p><ul class="code"><li>class BigWidget { ... };</li>
+<li>auto pBigObj = std::make_shared&lt;BigWidget&gt;();&nbsp;&nbsp;&nbsp; // only when RC=0 &amp;&amp; WC=0 will CB be destroyed</li>
+<li>std::shared_ptr&lt;BigWidget&gt; pBigObj(new BigWidget);&nbsp;&nbsp;&nbsp; // CB destroyed when RC=0</li>
+<li><br/></li>
+<li>// prototypes for the example below</li>
+<li>void processWidget(std::shared_ptr&lt;BigWidget&gt;, int);</li>
+<li>void cusDel(BigWidget* ptr);</li>
+<li>int computePriority();</li>
+<li>// Workaround</li>
+<li>// use original shared_ptr ctor; but exception unsafe</li>
+<li>processWidget( std::shared_ptr&lt;BigWidget&gt;(new BigWidget, cusDel), computePriority() );</li>
+<li><br/></li>
+<li>// separate the statement to avoid potential resource leak</li>
+<li>std::shared_ptr&lt;BigWidget&gt; spw(new Widget, cusDel);</li>
+<li>processWidget( spw, computePriority() );</li>
+<li>// a more efficient way and still guarantee exception-safe</li>
+<li>processWidget( std::move(spw), computePriority() );</li></ul>
+
+<p></p><h2>Item 22: Pimpl Idiom case</h2><p><b>PIMPL Idiom (Pointer to Implementation)</b></p><p>a pointer (data member) which points to the implementation class in which other data members are built</p><p></p><undefined><li><b>In Header File</b></li></undefined>
+<ul class="code"><li>class Widget {</li>
+<li>public:</li>
+<li>&nbsp;&nbsp;&nbsp; Widget();</li>
+<li>&nbsp;&nbsp;&nbsp; ~Widget();</li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;</li>
+<li>&nbsp;&nbsp;&nbsp; // only declarations</li>
+<li>&nbsp;&nbsp;&nbsp; Widget(Widget&amp;&amp; rhs);</li>
+<li>&nbsp;&nbsp;&nbsp; Widget&amp; operator=(Widget&amp;&amp; rhs);</li>
+<li>&nbsp;&nbsp;&nbsp; Widget(const Widget&amp; rhs);</li>
+<li>&nbsp;&nbsp;&nbsp; Widget&amp; operator=(const Widget&amp; rhs);</li>
+<li>&nbsp;&nbsp;&nbsp;&nbsp;</li>
+<li>private:</li>
+<li>&nbsp;&nbsp;&nbsp; // declare implementation struct and pointer to it</li>
+<li>&nbsp;&nbsp;&nbsp; struct Impl;</li>
+<li>&nbsp;&nbsp;&nbsp; std::unique_ptr&lt;Impl&gt; pImpl;</li>
+<li>};</li></ul>
+
+<p>In Implementation File</p><ul class="code"><li>#include &lt;vector&gt;&nbsp;&nbsp;&nbsp;&nbsp;</li>
+<li>#include &lt;string&gt;</li>
+<li>#include &quot;gadget.h&quot;</li>
+<li>#include &quot;widget.h&quot;</li>
+<li><br/></li>
+<li>struct Widget::Impl {</li>
+<li>&nbsp;&nbsp;&nbsp; std::string name;</li>
+<li>&nbsp;&nbsp;&nbsp; std::vector&lt;double&gt; data;</li>
+<li>&nbsp;&nbsp;&nbsp; Gadget g1, g2, g3;</li>
+<li>};</li>
+<li><br/></li>
+<li>Widget::Widget()</li>
+<li>: pImpl(std::make_unique&lt;Impl&gt;()) {}</li>
+<li>Widget::~Widget() = default;</li>
+<li><br/></li>
+<li>// shallow copy</li>
+<li>Widget::Widget(Widget&amp;&amp; rhs) = default;</li>
+<li>Widget&amp; Widget::operator=(Widget&amp;&amp; rhs) = default;</li>
+<li><br/></li>
+<li>// deep copy</li>
+<li>Widget::Widget(const Widget&amp; rhs)</li>
+<li>: pImpl(std::make_unique&lt;Impl&gt;(*rhs.pImpl)) {}</li>
+<li>Widget&amp; Widget::operator=(const Widget&amp; rhs) {</li>
+<li>&nbsp;&nbsp;&nbsp; *pImpl = *rhs.pImpl;</li>
+<li>&nbsp;&nbsp;&nbsp; return *this;</li>
+<li>}</li></ul>
+
+<p><b>Note</b></p><ul><li>compiler generates <b>inline</b> code, <b>static_assert</b>, beware incomplete <b>Widget::Impl</b> (Item 17)</li>
+<li>declaration of a dtor in <b>Widget</b> prevents compilers from generating the move operations (Item 17); declare <b>move</b> behavior by yourself.</li>
+<li>shallow copy and deep copy</li>
+<li>std::unique_ptr is the candidate in Pimpl Idiom, but std::shared_ptr also does its job well.<ul><li>type of the smart pointer (complete pointed-to types)</li></ul>
+</ul>
+
+<p></p><h2>Reference</h2><p><a href="http://herbsutter.com/gotw/_102/"></a><a href='http://herbsutter.com/gotw/_102/'/>http://herbsutter.com/gotw/_102/</a></p><p></p></body>
+</html>

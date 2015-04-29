@@ -3,12 +3,12 @@
 <head>
 <meta http-equiv="Content-type" content="text/html; charset=utf-8" />
 <meta http-equiv="Content-Language" content="en-us" />
-<meta name="version" content="8624"/>
+<meta name="version" content="10413"/>
 <style>body {font-family:Helvetica}ul.comment{list-style-image:url('https://hackpad.com/static/img/comment.png');} ul.task{list-style-image:url('https://hackpad.com/static/img/unchecked.png');}ul.taskdone{list-style-image:url('https://hackpad.com/static/img/checked.png');} </style><title>/1$z7Bz5qcUGRa</title>
 </head>
-<body><h1>Meyers Ch.4 Smart Pointers</h1><h2>Introduction</h2><p><b>What&rsquo;s wrong with raw pointers?</b></p><ul><li>Its declaration has <b>no</b> information to<ul><li>type of object it points to; Is it a single object or an array?</li>
+<body><h1>Meyers Ch.4 Smart Pointers Part I</h1><h2>Introduction</h2><p><b>What&rsquo;s wrong with raw pointers?</b></p><ul><li>Its declaration has <b>no</b> information to<ul><li>type of object it points to; Is it a single object or an array?</li>
 <li>ownership; Is it the legitimate resource owner or just temporary pointer?</li>
-<li>what kind of destruction method should be used? Ex: <b>delete</b> or <b>delete []</b>?</li></ul>
+<li>what kind of destruction method should be used? Ex: <b>delete</b> or <b>delete [ ]</b>?</li></ul>
 </li>
 <li>Handle the construction/destruction manually in code?<ul><li>Make the program follow the defined path is difficult (condition, multiple-thread...)</li>
 <li>Case of exception?</li></ul>
@@ -123,8 +123,9 @@
 <li>&nbsp;&nbsp;&nbsp; auto delObject = [](Object* pObj) { ... };</li>
 <li>&nbsp;&nbsp;&nbsp; // but in std::shared_ptr, there is no need to add custom deleter&rsquo;s type</li>
 <li>&nbsp;&nbsp;&nbsp; std::shared_ptr&lt;Object&gt; obj3 (new Object, delObject);</li>
+<li>&nbsp;&nbsp;&nbsp; std::shared_ptr&lt;Object&gt; obj4 (new Object, delObject2);</li>
 <li>&nbsp;&nbsp;&nbsp;&nbsp;</li>
-<li>&nbsp;&nbsp;&nbsp; // use std::make_shared</li>
+<li>&nbsp;&nbsp;&nbsp; // use std::make_shared, no custom deleter</li>
 <li>&nbsp;&nbsp;&nbsp; auto p1 = std::make_shared&lt;int&gt;(45);</li>
 <li>}</li></ul>
 
@@ -205,34 +206,5 @@
 <li><b>std::shared_ptr&lt;A&gt; toA</b> : A and B form <b>std::shared_ptr</b> cycles; resource won&rsquo;t be released even when both A and B have been orphaned</li>
 <li><b>std::weak_ptr&lt;A&gt; toA</b> : Now B can detect if A dangles, and since <b>toA</b> won&rsquo;t affect reference count of object A, A can release the memory when RC=0</li></ol>
 
-<p></p><h2>Item 21: std::make_unique() and std::make_shared()</h2><p><b>Usage</b></p><ul class="code"><li>// With these &quot;make functions&quot;, only one &quot;Object&quot; typed, sweet :)&nbsp;</li>
-<li>auto up1 ( std::make_unique&lt;Object&gt;() );</li>
-<li>std::unique_ptr&lt;Object&gt; up2 ( new Object );</li>
-<li>auto sp1 ( std::make_shared&lt;Object&gt;() );</li>
-<li>std::shared_ptr&lt;Object&gt; sp2 ( new Object );</li>
-<li><br/></li>
-<li><br/></li>
-<li><br/></li>
-<li>// Although std::make_unique is not defined in C++11, build a simple version is not a big deal</li>
-<li>template &lt;typename T, typename... Ts&gt;</li>
-<li>std::unique_ptr&lt;T&gt; make_unique(Ts&amp;&amp;... params)</li>
-<li>{</li>
-<li>&nbsp;&nbsp;&nbsp; return std::unique_ptr&lt;T&gt;(new T(std::forward&lt;Ts&gt;(params)...));</li>
-<li>}</li></ul>
-<p><b>Property</b></p><undefined><li><b>Make functions</b></li></undefined>
-<ol><li><b>std::make_unique</b></li>
-<li><b>std::make_shared</b></li>
-<li><b>std::allocate_shared</b></li></ol>
-<undefined><li><b>Pros/Cons</b></li></undefined>
-<ul><li>code simplicity</li>
-<li>improve exception safety</li>
-<li>generate lightweight code for <b>std::make_shared</b> and <b>std::allocate_shared</b></li>
-<li>cannot be used when assigning custom deleters, or passing brace initializers</li></ul>
-
-<p><b>Exception Safety</b></p><ul class="code"><li>void f (std::unique&lt;Object&gt;, std::unique&lt;Object&gt;)&nbsp;&nbsp;&nbsp; // header declaration</li>
-<li><br/></li>
-<li>// call of f. Which one is better?</li>
-<li>f ( std::unique&lt;Object&gt; { new Object } , std::unique&lt;Object&gt; { new Object } );</li>
-<li>f ( std::make_unique&lt;Object&gt;(), std::make_unique&lt;Object&gt;() );</li></ul>
-<p>Why <b>std::make_unique</b> can guarantee exception-safety?</p><p>It produces &quot;temporary objects&quot; (<b>std::unique&lt;T&gt;</b> pointers) , and its destruction is clearly specified in C++ standard</p><p></p><p></p><h2>Item 22: Pimpl Idiom case</h2><p></p><p></p><h2>Reference</h2><p><a href="http://oopscenities.net/2013/04/09/smart-pointers-part-2-unique_ptr-2/"></a>http://oopscenities.net/2013/04/09/smart-pointers-part-2-unique_ptr-2/</p><p><a href="http://oopscenities.net/2013/08/06/c-smart-pointers-part-3-more-on-unique_ptr/"></a>http://oopscenities.net/2013/08/06/c-smart-pointers-part-3-more-on-unique_ptr/</p><p><a href="http://oopscenities.net/2013/10/06/smart-pointers-part-4-shared_ptr/"></a>http://oopscenities.net/2013/10/06/smart-pointers-part-4-shared_ptr/</p><p><a href="http://oopscenities.net/2014/08/03/c-smart-pointers-part-5-weak_ptr/"></a>http://oopscenities.net/2014/08/03/c-smart-pointers-part-5-weak_ptr/</p><p></p><p><a href="http://herbsutter.com/gotw/_102/"></a>http://herbsutter.com/gotw/_102/</p><p></p><p></p></body>
+<h2>Reference</h2><p><a href="http://oopscenities.net/2013/04/09/smart-pointers-part-2-unique_ptr-2/"></a>http://oopscenities.net/2013/04/09/smart-pointers-part-2-unique_ptr-2/</p><p><a href="http://oopscenities.net/2013/08/06/c-smart-pointers-part-3-more-on-unique_ptr/"></a>http://oopscenities.net/2013/08/06/c-smart-pointers-part-3-more-on-unique_ptr/</p><p><a href="http://oopscenities.net/2013/10/06/smart-pointers-part-4-shared_ptr/"></a>http://oopscenities.net/2013/10/06/smart-pointers-part-4-shared_ptr/</p><p><a href="http://oopscenities.net/2014/08/03/c-smart-pointers-part-5-weak_ptr/"></a>http://oopscenities.net/2014/08/03/c-smart-pointers-part-5-weak_ptr/</p><p></p></body>
 </html>
