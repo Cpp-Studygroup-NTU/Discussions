@@ -52,4 +52,15 @@ auto foo() { return {1, 2, 3}; } // error
 auto bar = [](auto& v) { return v; };
 bar({1, 2, 3}) // error
 
+Why?
+template<typename T>
+auto foo(const T& t, size_t i) { return t[i]; }
+
+std::vector<int> vec;
+vec.resize(1);
+foo(vec, 0) = 3; // if auto deduction used, foo(vec, 0) will be int instead of int&
+/*
+ * Key point: auto deduction ignores reference qualifiers
+ */
+
 ** Some of codes mentioned in this note can be found in auto-type-deduction.cpp

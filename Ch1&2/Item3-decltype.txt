@@ -1,0 +1,23 @@
+decltype
+
+decltype is a language structure that gives the type of its parameter.
+
+Examples:
+
+std::vector<int> vec;
+decltype(vec[0]) // int
+
+It can be used in trailing return type deduction. For example:
+
+template<typename T>
+auto foo(const T& t) -> decltype(t)
+{ return t; }
+
+Note that such usages are different from auto return type deduction mentioned in the last item.
+
+template<typename T>
+auto foo(const T& t)
+{ return t; }
+
+In codes above, template deduction is involved. In template deduction, reference qualifiers are ignored, so the returned value is not assignable.
+In C++ 14, there's a special form to enforce decltype deduction: decltype(auto). See decltype-auto.cpp for a concrete example.
