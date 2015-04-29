@@ -51,3 +51,5 @@ An advanced example:
 auto foo() { return {1, 2, 3}; } // error
 auto bar = [](auto& v) { return v; };
 bar({1, 2, 3}) // error
+
+** Some of codes mentioned in this note can be found in auto-type-deduction.cpp
