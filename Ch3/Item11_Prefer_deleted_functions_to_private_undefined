@@ -1,0 +1,103 @@
+Item 11: Prefer deleted functions to private undefined ones.
+
+C++11多了delete關鍵字，可以將函數設為deleted function，去掉我們不想要定義的函數。
+若有人call了被設為deleted function的函數則會在編譯期就發生"呼叫deleted function"的錯誤。
+
+用途：
+1.default copy constructor/copy assignment
+不想要class可以被copy，在C++98會把宣告丟private，然後不去定義它：
+class Nocopy98
+{
+public:
+
+...
+
+private:
+
+Nocopy98(const Nocopy98&);//Not defined
+Nocopy98& operator=(const Nocopy98&);//Not defined
+...
+
+};
+
+在C++11中則會把它放在public，設成deleted function:
+
+class Nocopy11
+{
+public:
+
+...
+Nocopy11(const Nocopy11&)=delete;
+Nocopy11& operator=(const Nocopy11&)=delete;
+...
+
+};
+
+好處：
+1.比較好懂
+2.對於member function或friend class來說，在C++98時，
+如果不小心用了copy行為，要到連結期才會因為找不到函數定義出現錯誤；
+在C++11時，在編譯期就會因為援用了deleted function而出現錯誤，提早報錯。
+3.對於使用該class的client code來說，在C++98時，
+如果不小心用了copy行為，編譯器會報權限出錯(不能用private function)，
+但它不會告訴你這個class不希望有copy行為；
+在C++11中，我們把deleted function丟在public，則使用copy時編譯器會報出使用deleted function的錯誤，
+這樣的報錯是較正確的，因為當一個函數被設為deleted function，就代表設計者不希望有這個行為。
+
+2.任何的函數都可以被設為deleted function，所以可以用delete關鍵字刻意去掉你不想要的行為
+(嚴格來說用法1算是2的常用例子)。
+例如，今天我們有一個2維的網格，在網格的每個點上有值，其座標皆為整數(ex.(2,3))
+有一個函數，輸入格子點會回報在格子點上的值：
+int getValue(const int x,const int y);
+但是，萬一今天使用者不知道這函數背後有一個網格模型，而這樣呼叫函數
+int val1=getValue(0.5,0.5);
+回傳的值就沒有意義，Garbage in, garbage out.
+要避免這樣的行為，可以overload浮點數版本的函數，把它設為deleted function：
+getValue(const double x, const double y)=delete;
+(compiler會先決定被呼叫的函數，再去看它是否為deleted function，如果是則會直接報錯)
+
+3.承上，也可用於阻止compiler用template生成我們不想要有的函數，
+舉例來說，如果有個使用指標的template，內部實作會用到該指標指向的東西：
+template<typename T>
+void Processingptr(T* ptr)
+{
+	...	
+	T obj = *T;
+	...
+}
+你不會希望
+(1)void*被傳進去，因為dereference void*是不合法的。
+(2)char*被傳進去，因為通常char*是指向一個C-style字串，dereference通常不是我們想要的行為。
+於是你可以這樣寫：
+
+template<>
+void Processingptr<void>(void*) = delete;
+
+template<>
+void Processingptr<char>(char*) = delete;
+(如果要再禁止const void*或const char*，就再多寫兩行XD)
+
+這個用法在C++98是有侷限的，因為你沒辦法把template specialization丟到和原本的template不同的access level裡面：
+
+class GGin98
+{
+public:
+
+	template<typename T>
+	void Processingptr(T* ptr)
+	{
+		...
+	}
+
+private:
+	template<> void Processingptr<void>(void*);
+	...
+};
+這樣去編譯會出錯，因為原本的template所產生的函數是public，編譯器禁止我們寫特例在其它level裡面。
+
+在C++11中你可以把要禁止的特例丟出class外部：
+
+template<>
+void GGin98::Processingptr<void>(void*)=delete;
+
+因此可以禁止在class內部定義的template不想要有的特例。
