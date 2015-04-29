@@ -1,0 +1,53 @@
+In C++ 11, you can use auto for declaring variables.
+In C++ 14, you can use auto for function return types.
+
+For example:
+
+auto i = 3; // i will be a int
+auto foo() { return 3; } // foo will be a function returning ints
+
+Type deduction rules for auto are almost the same as template argument deductions. That is, the two statements above use the same algorithm as the following codes use:
+
+template<typename T>
+void foo(T t) {}
+
+foo(3);
+
+An advanced example:
+
+int i = 3;
+auto&& j = i; // j will be int&
+
+Which conforms to:
+
+template<typename T>
+void foo(T& t) {}
+
+int i = 3;
+foo(i);
+
+See ./lib/Sema/SemaTemplateDeduction.cpp in clang source
+http://llvm.org/svn/llvm-project/cfe/trunk/
+https://github.com/llvm-mirror/clang
+
+However, there are exceptions if initializer_list involved:
+(1) initialize with initializer_list
+auto i(3); // i will be int
+auto j{3}; // i will be std::initializer_list<int>
+
+An advanced example:
+
+auto foo{1, 2, 3.0}; // failed
+
+In this line, two deductions take place. First is deduction of T in std::initializer_list<T>. This step fails because all elements in the curly bracket pair should have the same type. The second one is from deduction of auto, which never happens due to previous failures.
+
+(2) Return type for auto function
+Functions with return types 'auto' use template deductions rather than auto deduction. A difference between the two is that std::initializer_list<T> can be used in the latter but not in the former
+
+A basic example:
+http://stackoverflow.com/questions/12431495/initializer-list-and-template-type-deduction
+
+An advanced example:
+auto foo() { return {1, 2, 3}; } // error
+auto bar = [](auto& v) { return v; };
+bar({1, 2, 3}) // error
