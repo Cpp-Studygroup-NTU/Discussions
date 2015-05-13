@@ -1,0 +1,65 @@
+Vocabulary
+pragmatism 實用主義
+pragmatist 實用主義者
+hasty 匆匆的,輕率的,急忙的
+loose (v.) 發射（子彈、箭、導彈等）
+cruft Bad code
+
+How to know results of type deduction?
+1. IDE
+   A side note: XCode uses libclang of LLVM as its engine. Libclang can autocomplete, deduce types, and more
+2. Compiler warnings/errors
+
+template<typename T>
+class TD;
+
+TD<decltype(x)> xType; // error: aggregate 'TD<int> xType' has incomplete type and cannot be defined
+
+3. typeid
+Requires #include <typeinfo>
+
+Ex:
+std::cout << typeid(x).name() << std::endl;
+
+See typeid-test.cpp
+
+The result from GCC 5.1.0
+
+$ ./a.out
+f
+Z4mainEUt_
+
+The result from clang/llvm 3.6.0
+
+$ ./a.out
+f
+Z4mainE3$_0
+
+typeid(x) is a std::type_info object. See <typeinfo> for available functions
+
+Pitfalls:
+1. typeid() is not reliable
+The spec says the parameter passed to typeid is treated as if it's passed to a function by-value. Therefore, reference and const are removed
+Ex: const int& => int
+
+2. IDE's information is sometimes not understandable
+const
+std::_Simple_types<std::_Wrap_alloc<std::_Vec_base_types<Widget,
+std::allocator<Widget> >::_Alloc>::value_type>::value_type *
+
+The author's opinion: compilers' warnings/errors are more reliable
+
+Other approaches:
+1. Use <type_traits>
+std::is_const, std::is_lvalue_reference, etc.
+Disadvantage: not applicable to all possible types
+
+2. Use compiler pre-defined macroes
+GCC/Clang: __PRETTY_FUNCTION__
+MSCV: __FUNCSIG__
+Advantage: more accurate and can be used runtime
+Disadvantage: not portable
+
+A final note: How is typeid() implemented?
+In libstdc++ and libc++ (*), std::type_info class contains only a const char* member. In LLVM, type information are calcuated in compilers first, which is usually stored as a string, and then bitcast (an LLVM operation, similar to reinterpret_cast in C++) to std::type_info. This can be observed via `clang++ -S -emit-llvm typeid-test.cpp`
+(*) There's an exception. In some cases, type_info contains a uintptr_t (unsigned int*) member instead of a const char*. Search for _LIBCPP_NONUNIQUE_RTTI_BIT in /usr/include/c++/v1/{typeinfo,__config}
